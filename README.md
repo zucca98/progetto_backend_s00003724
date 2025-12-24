@@ -215,7 +215,7 @@ Questa documentazione è pensata per essere consultata in modo modulare:
 ---
 
 **Versione Documentazione**: 1.1  
-**Ultimo Aggiornamento**: Dicembre 2024
+**Ultimo Aggiornamento**: Dicembre 2025
 
 ### 🔒 Aggiornamenti Sicurezza (v1.1)
 
