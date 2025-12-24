@@ -1,0 +1,1435 @@
+{
+	"info": {
+		"_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+		"name": "Cooperativa Immobiliare API",
+		"description": "Postman Collection completa per il backend Spring Boot della Cooperativa Immobiliare.\n\n## Ruoli disponibili\n- ROLE_ADMIN: Accesso completo\n- ROLE_MANAGER: Gestione immobili, contratti, locatari\n- ROLE_LOCATARIO: Accesso ai propri dati\n\n## Credenziali di test (da DataSeeder.java - si esegue all'avvio se DB vuoto)\n- Admin: admin@cooperativa.it / admin123\n- Manager: manager@cooperativa.it / manager123\n- Locatario: giuseppe.verdi@email.it / locatario123\n\n⚠️ NOTA: Se il database è stato popolato da init-data.sql invece che dal DataSeeder, gli hash BCrypt potrebbero non corrispondere. Usa reset-users-only.sql per resettare.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"auth": {
+		"type": "bearer",
+		"bearer": [{"key": "token", "value": "{{accessToken}}", "type": "string"}]
+	},
+	"event": [{
+		"listen": "prerequest",
+		"script": {
+			"type": "text/javascript",
+			"exec": ["// Collection-level pre-request script - verifica token se necessario"]
+		}
+	}],
+	"variable": [
+		{"key": "baseUrl", "value": "http://localhost:8080"},
+		{"key": "accessToken", "value": ""},
+		{"key": "adminToken", "value": ""},
+		{"key": "adminUserId", "value": ""},
+		{"key": "managerToken", "value": ""},
+		{"key": "managerUserId", "value": ""},
+		{"key": "locatarioToken", "value": ""},
+		{"key": "locatarioUserId", "value": ""},
+		{"key": "immobileId", "value": ""},
+		{"key": "contrattoId", "value": ""},
+		{"key": "locatarioId", "value": ""},
+		{"key": "rataId", "value": ""},
+		{"key": "manutenzioneId", "value": ""},
+		{"key": "userId", "value": ""}
+	],
+	"item": [
+		{
+			"name": "01 - Auth",
+			"description": "Autenticazione e registrazione utenti.\n\nEVIDENZA:\n- File: src/main/java/com/epicode/Progetto_Backend/controller/AuthController.java\n- Mapping: @RequestMapping(\"/api/auth\")\n- Auth: Pubblico (permitAll in SecurityConfig.java)",
+			"item": [
+				{
+					"name": "Register",
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status code is 201', function() {",
+								"    pm.response.to.have.status(201);",
+								"});",
+								"var jsonData = pm.response.json();",
+								"if(jsonData && jsonData.token) {",
+								"    pm.environment.set('accessToken', jsonData.token);",
+								"    pm.environment.set('userId', jsonData.userId);",
+								"}"
+							],
+							"type": "text/javascript"
+						}
+					}],
+					"request": {
+						"auth": {"type": "noauth"},
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"testuser{{$timestamp}}@example.com\",\n    \"password\": \"test123\",\n    \"nome\": \"Test\",\n    \"cognome\": \"User\"\n}"
+						},
+						"url": {"raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"]},
+						"description": "EVIDENZA:\n- File: AuthController.java:32\n- Metodo: register(@Valid @RequestBody RegisterRequestDTO)\n- Mapping: @PostMapping(\"/register\")\n- Auth/Ruolo: Pubblico\n\nDTO: email(@Email), password(@Size min=6), nome, cognome(@NotBlank)\nResponse: AuthResponseDTO con token, userId, email, nome, cognome, roles"
+					}
+				},
+				{
+					"name": "Login Admin",
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status code is 200', function() {",
+								"    pm.response.to.have.status(200);",
+								"});",
+								"var jsonData = pm.response.json();",
+								"pm.test('Response has token', function() {",
+								"    pm.expect(jsonData).to.have.property('token');",
+								"    pm.expect(jsonData.token).to.not.be.empty;",
+								"});",
+								"if(jsonData && jsonData.token) {",
+								"    var token = jsonData.token;",
+								"    // Salva sempre in collection variables (funziona sempre)",
+								"    pm.collectionVariables.set('accessToken', token);",
+								"    pm.collectionVariables.set('adminToken', token);",
+								"    pm.collectionVariables.set('adminUserId', jsonData.userId);",
+								"    // Prova a salvare anche in environment se disponibile",
+								"    try {",
+								"        pm.environment.set('accessToken', token);",
+								"        pm.environment.set('adminToken', token);",
+								"        pm.environment.set('adminUserId', jsonData.userId);",
+								"        console.log('Token salvato in environment e collection variables');",
+								"    } catch(e) {",
+								"        console.log('Token salvato solo in collection variables (environment non disponibile)');",
+								"    }",
+								"    console.log('Token value:', token.substring(0, 30) + '...');",
+								"    console.log('Token length:', token.length);",
+								"}"
+							],
+							"type": "text/javascript"
+						}
+					}],
+					"request": {
+						"auth": {"type": "noauth"},
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"admin@cooperativa.it\",\n    \"password\": \"admin123\"\n}",
+							"options": {"raw": {"language": "json"}}
+						},
+						"url": {"raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"]},
+						"description": "EVIDENZA:\n- File: AuthController.java:64\n- Metodo: login(@Valid @RequestBody LoginRequestDTO)\n- Mapping: @PostMapping(\"/login\")\n- Auth/Ruolo: Pubblico\n\nCredenziali: admin@cooperativa.it / admin123 (DataSeeder)\n\nNOTA: Valori hardcoded. Se preferisci usare variabili, importa l'environment e cambia con {{adminEmail}} e {{adminPassword}}"
+					}
+				},
+				{
+					"name": "Login Manager",
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status code is 200', function() {",
+								"    pm.response.to.have.status(200);",
+								"});",
+								"var jsonData = pm.response.json();",
+								"if(jsonData && jsonData.token) {",
+								"    pm.environment.set('managerToken', jsonData.token);",
+								"    pm.environment.set('managerUserId', jsonData.userId);",
+								"}"
+							],
+							"type": "text/javascript"
+						}
+					}],
+					"request": {
+						"auth": {"type": "noauth"},
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"manager@cooperativa.it\",\n    \"password\": \"manager123\"\n}",
+							"options": {"raw": {"language": "json"}}
+						},
+						"url": {"raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"]},
+						"description": "EVIDENZA:\n- File: AuthController.java:64\n- Mapping: @PostMapping(\"/login\")\n- Auth/Ruolo: Pubblico\n\nCredenziali: manager@cooperativa.it / manager123 (DataSeeder)"
+					}
+				},
+				{
+					"name": "Login Locatario",
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status code is 200', function() {",
+								"    pm.response.to.have.status(200);",
+								"});",
+								"var jsonData = pm.response.json();",
+								"if(jsonData && jsonData.token) {",
+								"    pm.environment.set('locatarioToken', jsonData.token);",
+								"    pm.environment.set('locatarioUserId', jsonData.userId);",
+								"}"
+							],
+							"type": "text/javascript"
+						}
+					}],
+					"request": {
+						"auth": {"type": "noauth"},
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"giuseppe.verdi@email.it\",\n    \"password\": \"locatario123\"\n}",
+							"options": {"raw": {"language": "json"}}
+						},
+						"url": {"raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"]},
+						"description": "EVIDENZA:\n- File: AuthController.java:64\n- Mapping: @PostMapping(\"/login\")\n- Auth/Ruolo: Pubblico\n\nCredenziali: giuseppe.verdi@email.it / locatario123 (DataSeeder)"
+					}
+				}
+			]
+		},
+		{
+			"name": "02 - Users",
+			"description": "Gestione utenti.\n\nEVIDENZA:\n- File: UserController.java\n- Mapping: @RequestMapping(\"/api/users\")",
+			"item": [
+				{
+					"name": "Get All Users",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Recupera il token da environment o collection variables",
+									"var token = pm.environment.get('adminToken') || pm.collectionVariables.get('adminToken');",
+									"if (token) {",
+									"    // Imposta manualmente l'header Authorization",
+									"    pm.request.headers.add({",
+									"        key: 'Authorization',",
+									"        value: 'Bearer ' + token",
+									"    });",
+									"    console.log('Token trovato, header Authorization impostato');",
+									"} else {",
+									"    console.error('Token non trovato! Esegui prima il Login Admin.');",
+									"    throw new Error('Token non trovato. Esegui prima il Login Admin.');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function() {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"if (pm.response.code === 401) {",
+									"    console.error('401 Unauthorized - Token non valido o mancante');",
+									"    console.log('Token usato:', pm.environment.get('adminToken') || pm.collectionVariables.get('adminToken'));",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {"type": "noauth"},
+						"method": "GET",
+						"header": [],
+						"url": {"raw": "{{baseUrl}}/api/users", "host": ["{{baseUrl}}"], "path": ["api", "users"]},
+						"description": "EVIDENZA:\n- File: UserController.java:41\n- Metodo: getAllUsers()\n- Mapping: @GetMapping\n- Auth/Ruolo: @PreAuthorize(\"hasRole('ADMIN')\")\n\n⚠️ IMPORTANTE: Esegui prima il Login Admin per salvare il token. Il token viene impostato automaticamente dal pre-request script."
+					}
+				},
+				{
+					"name": "Get User by ID",
+					"request": {
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}"}]},
+						"method": "GET",
+						"url": {"raw": "{{baseUrl}}/api/users/{{adminUserId}}", "host": ["{{baseUrl}}"], "path": ["api", "users", "{{adminUserId}}"]},
+						"description": "EVIDENZA:\n- File: UserController.java:47\n- Metodo: getUserById(@PathVariable Long id)\n- Mapping: @GetMapping(\"/{id}\")\n- Auth/Ruolo: @PreAuthorize(\"hasRole('ADMIN')\")"
+					}
+				},
+				{
+					"name": "Get Current User (Me)",
+					"request": {
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{accessToken}}", "type": "string"}]},
+						"method": "GET",
+						"url": {"raw": "{{baseUrl}}/api/users/me", "host": ["{{baseUrl}}"], "path": ["api", "users", "me"]},
+						"description": "EVIDENZA:\n- File: UserController.java:53\n- Metodo: getCurrentUser(Authentication)\n- Mapping: @GetMapping(\"/me\")\n- Auth/Ruolo: @PreAuthorize(\"isAuthenticated()\")\n\nUsa {{accessToken}} dalla collection/environment"
+					}
+				},
+				{
+					"name": "Update Current User",
+					"request": {
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{accessToken}}", "type": "string"}]},
+						"method": "PUT",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"nome\": \"Updated Name\",\n    \"cognome\": \"Updated Surname\"\n}"
+						},
+						"url": {"raw": "{{baseUrl}}/api/users/me", "host": ["{{baseUrl}}"], "path": ["api", "users", "me"]},
+						"description": "EVIDENZA:\n- File: UserController.java:60\n- Metodo: updateCurrentUser(Authentication, @Valid @RequestBody UserUpdateDTO)\n- Mapping: @PutMapping(\"/me\")\n- Auth/Ruolo: @PreAuthorize(\"isAuthenticated()\")"
+					}
+				},
+				{
+					"name": "Update User by ID",
+					"request": {
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}"}]},
+						"method": "PUT",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"nome\": \"Admin Updated\",\n    \"cognome\": \"Sistema Updated\"\n}"
+						},
+						"url": {"raw": "{{baseUrl}}/api/users/{{adminUserId}}", "host": ["{{baseUrl}}"], "path": ["api", "users", "{{adminUserId}}"]},
+						"description": "EVIDENZA:\n- File: UserController.java:84\n- Metodo: updateUser(@PathVariable Long id, @Valid @RequestBody UserUpdateDTO)\n- Mapping: @PutMapping(\"/{id}\")\n- Auth/Ruolo: @PreAuthorize(\"hasRole('ADMIN')\")"
+					}
+				},
+				{
+					"name": "Update User Roles",
+					"request": {
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}"}]},
+						"method": "PUT",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "[\"ROLE_MANAGER\", \"ROLE_LOCATARIO\"]"
+						},
+						"url": {"raw": "{{baseUrl}}/api/users/{{managerUserId}}/roles", "host": ["{{baseUrl}}"], "path": ["api", "users", "{{managerUserId}}", "roles"]},
+						"description": "EVIDENZA:\n- File: UserController.java:99\n- Metodo: updateUserRoles(@PathVariable Long id, @RequestBody Set<String> roles)\n- Mapping: @PutMapping(\"/{id}/roles\")\n- Auth/Ruolo: @PreAuthorize(\"hasRole('ADMIN')\")"
+					}
+				},
+				{
+					"name": "Get All Roles",
+					"request": {
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}"}]},
+						"method": "GET",
+						"url": {"raw": "{{baseUrl}}/api/users/roles", "host": ["{{baseUrl}}"], "path": ["api", "users", "roles"]},
+						"description": "EVIDENZA:\n- File: UserController.java:107\n- Metodo: getAllRoles()\n- Mapping: @GetMapping(\"/roles\")\n- Auth/Ruolo: @PreAuthorize(\"hasRole('ADMIN')\")"
+					}
+				},
+				{
+					"name": "Delete User",
+					"request": {
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}"}]},
+						"method": "DELETE",
+						"url": {"raw": "{{baseUrl}}/api/users/{{userId}}", "host": ["{{baseUrl}}"], "path": ["api", "users", "{{userId}}"]},
+						"description": "EVIDENZA:\n- File: UserController.java:92\n- Metodo: deleteUser(@PathVariable Long id)\n- Mapping: @DeleteMapping(\"/{id}\")\n- Auth/Ruolo: @PreAuthorize(\"hasRole('ADMIN')\")\n\nResponse: 204 No Content"
+					}
+				}
+			]
+		},
+		{
+			"name": "03 - Immobili",
+			"description": "CRUD Immobili.\n\nEVIDENZA:\n- File: ImmobileController.java\n- Mapping: @RequestMapping(\"/api/immobili\")",
+			"item": [
+				{
+					"name": "Create Immobile (Appartamento)",
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status code is 201', function() {",
+								"    pm.response.to.have.status(201);",
+								"});",
+								"var jsonData = pm.response.json();",
+								"if(jsonData && jsonData.id) {",
+								"    pm.environment.set('immobileId', jsonData.id);",
+								"}"
+							],
+							"type": "text/javascript"
+						}
+					}],
+					"request": {
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}"}]},
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"indirizzo\": \"Via Test 123\",\n    \"citta\": \"Milano\",\n    \"superficie\": 100.5,\n    \"tipo\": \"APPARTAMENTO\",\n    \"piano\": 3,\n    \"numCamere\": 4\n}"
+						},
+						"url": {"raw": "{{baseUrl}}/api/immobili", "host": ["{{baseUrl}}"], "path": ["api", "immobili"]},
+						"description": "EVIDENZA:\n- File: ImmobileController.java:53\n- Metodo: createImmobile(@Valid @RequestBody ImmobileRequestDTO)\n- Mapping: @PostMapping\n- Auth/Ruolo: @PreAuthorize(\"hasAnyRole('ADMIN', 'MANAGER')\")\n\nTipo: APPARTAMENTO|NEGOZIO|UFFICIO"
+					}
+				},
+				{
+					"name": "Create Immobile (Negozio)",
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status code is 201', function() {",
+								"    pm.response.to.have.status(201);",
+								"});",
+								"var jsonData = pm.response.json();",
+								"if(jsonData && jsonData.id) {",
+								"    pm.environment.set('immobileId', jsonData.id);",
+								"}"
+							],
+							"type": "text/javascript"
+						}
+					}],
+					"request": {
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}"}]},
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"indirizzo\": \"Via Commerciale 45\",\n    \"citta\": \"Roma\",\n    \"superficie\": 150.0,\n    \"tipo\": \"NEGOZIO\",\n    \"vetrine\": 3,\n    \"magazzinoMq\": 50.0\n}"
+						},
+						"url": {"raw": "{{baseUrl}}/api/immobili", "host": ["{{baseUrl}}"], "path": ["api", "immobili"]},
+						"description": "EVIDENZA:\n- File: ImmobileController.java:53\n- Metodo: createImmobile(@Valid @RequestBody ImmobileRequestDTO)\n- Mapping: @PostMapping\n- Auth/Ruolo: @PreAuthorize(\"hasAnyRole('ADMIN', 'MANAGER')\")\n\nTipo: NEGOZIO - richiede vetrine (Int) e magazzinoMq (Float)"
+					}
+				},
+				{
+					"name": "Create Immobile (Ufficio)",
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status code is 201', function() {",
+								"    pm.response.to.have.status(201);",
+								"});",
+								"var jsonData = pm.response.json();",
+								"if(jsonData && jsonData.id) {",
+								"    pm.environment.set('immobileId', jsonData.id);",
+								"}"
+							],
+							"type": "text/javascript"
+						}
+					}],
+					"request": {
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}"}]},
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"indirizzo\": \"Via Business 78\",\n    \"citta\": \"Torino\",\n    \"superficie\": 200.0,\n    \"tipo\": \"UFFICIO\",\n    \"postiLavoro\": 15,\n    \"saleRiunioni\": 3\n}"
+						},
+						"url": {"raw": "{{baseUrl}}/api/immobili", "host": ["{{baseUrl}}"], "path": ["api", "immobili"]},
+						"description": "EVIDENZA:\n- File: ImmobileController.java:53\n- Metodo: createImmobile(@Valid @RequestBody ImmobileRequestDTO)\n- Mapping: @PostMapping\n- Auth/Ruolo: @PreAuthorize(\"hasAnyRole('ADMIN', 'MANAGER')\")\n\nTipo: UFFICIO - richiede postiLavoro (Int) e saleRiunioni (Int)"
+					}
+				},
+				{
+					"name": "Get All Immobili",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/api/immobili?page=0&size=20&sort=id,asc",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "immobili"],
+							"query": [{"key": "page", "value": "0"}, {"key": "size", "value": "20"}, {"key": "sort", "value": "id,asc"}]
+						},
+						"description": "EVIDENZA:\n- File: ImmobileController.java:40\n- Metodo: getAllImmobili(@PageableDefault Pageable)\n- Mapping: @GetMapping\n- Auth/Ruolo: @PreAuthorize(\"hasAnyRole('ADMIN', 'MANAGER', 'LOCATARIO')\")"
+					}
+				},
+				{
+					"name": "Get Immobile by ID",
+					"request": {
+						"method": "GET",
+						"url": {"raw": "{{baseUrl}}/api/immobili/{{immobileId}}", "host": ["{{baseUrl}}"], "path": ["api", "immobili", "{{immobileId}}"]},
+						"description": "EVIDENZA:\n- File: ImmobileController.java:47\n- Metodo: getImmobileById(@PathVariable Long id)\n- Mapping: @GetMapping(\"/{id}\")\n- Auth/Ruolo: @PreAuthorize(\"hasAnyRole('ADMIN', 'MANAGER', 'LOCATARIO')\")"
+					}
+				},
+				{
+					"name": "Update Immobile",
+					"request": {
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}"}]},
+						"method": "PUT",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"indirizzo\": \"Via Test Updated 456\",\n    \"citta\": \"Milano\",\n    \"superficie\": 120.0,\n    \"tipo\": \"APPARTAMENTO\",\n    \"piano\": 4,\n    \"numCamere\": 5\n}"
+						},
+						"url": {"raw": "{{baseUrl}}/api/immobili/{{immobileId}}", "host": ["{{baseUrl}}"], "path": ["api", "immobili", "{{immobileId}}"]},
+						"description": "EVIDENZA:\n- File: ImmobileController.java:62\n- Metodo: updateImmobile(@PathVariable Long id, @Valid @RequestBody ImmobileRequestDTO)\n- Mapping: @PutMapping(\"/{id}\")\n- Auth/Ruolo: @PreAuthorize(\"hasAnyRole('ADMIN', 'MANAGER')\")"
+					}
+				},
+				{
+					"name": "Get Immobili per Città",
+					"request": {
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}"}]},
+						"method": "GET",
+						"url": {"raw": "{{baseUrl}}/api/immobili/per-citta", "host": ["{{baseUrl}}"], "path": ["api", "immobili", "per-citta"]},
+						"description": "EVIDENZA:\n- File: ImmobileController.java:77\n- Metodo: getImmobiliAffittatiPerCitta()\n- Mapping: @GetMapping(\"/per-citta\")\n- Auth/Ruolo: @PreAuthorize(\"hasAnyRole('ADMIN', 'MANAGER')\")"
+					}
+				},
+				{
+					"name": "Get Immobili per Tipo",
+					"request": {
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}"}]},
+						"method": "GET",
+						"url": {"raw": "{{baseUrl}}/api/immobili/per-tipo", "host": ["{{baseUrl}}"], "path": ["api", "immobili", "per-tipo"]},
+						"description": "EVIDENZA:\n- File: ImmobileController.java:83\n- Metodo: getContImmobiliPerTipo()\n- Mapping: @GetMapping(\"/per-tipo\")\n- Auth/Ruolo: @PreAuthorize(\"hasAnyRole('ADMIN', 'MANAGER')\")"
+					}
+				},
+				{
+					"name": "Delete Immobile",
+					"request": {
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}"}]},
+						"method": "DELETE",
+						"url": {"raw": "{{baseUrl}}/api/immobili/{{immobileId}}", "host": ["{{baseUrl}}"], "path": ["api", "immobili", "{{immobileId}}"]},
+						"description": "EVIDENZA:\n- File: ImmobileController.java:70\n- Metodo: deleteImmobile(@PathVariable Long id)\n- Mapping: @DeleteMapping(\"/{id}\")\n- Auth/Ruolo: @PreAuthorize(\"hasRole('ADMIN')\")\n\nResponse: 204 No Content"
+					}
+				}
+			]
+		},
+		{
+			"name": "04 - Locatari",
+			"description": "CRUD Locatari.\n\nEVIDENZA:\n- File: LocatarioController.java\n- Mapping: @RequestMapping(\"/api/locatari\")",
+			"item": [
+				{
+					"name": "Create Locatario",
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status code is 201', function() {",
+								"    pm.response.to.have.status(201);",
+								"});",
+								"var jsonData = pm.response.json();",
+								"if(jsonData && jsonData.id) {",
+								"    pm.environment.set('locatarioId', jsonData.id);",
+								"}"
+							],
+							"type": "text/javascript"
+						}
+					}],
+					"request": {
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}"}]},
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"nome\": \"Mario\",\n    \"cognome\": \"Bianchi\",\n    \"cf\": \"BNCMRA80A01H501X\",\n    \"indirizzo\": \"Via Roma 100, Milano\",\n    \"telefono\": \"+39 333 9876543\",\n    \"userId\": {{locatarioUserId}}\n}"
+						},
+						"url": {"raw": "{{baseUrl}}/api/locatari", "host": ["{{baseUrl}}"], "path": ["api", "locatari"]},
+						"description": "EVIDENZA:\n- File: LocatarioController.java:60\n- Metodo: createLocatario(@Valid @RequestBody LocatarioRequestDTO)\n- Mapping: @PostMapping\n- Auth/Ruolo: @PreAuthorize(\"hasAnyRole('ADMIN', 'MANAGER')\")"
+					}
+				},
+				{
+					"name": "Get All Locatari",
+					"request": {
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}"}]},
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/api/locatari?page=0&size=20",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "locatari"],
+							"query": [{"key": "page", "value": "0"}, {"key": "size", "value": "20"}]
+						},
+						"description": "EVIDENZA:\n- File: LocatarioController.java:39\n- Metodo: getAllLocatari(@PageableDefault Pageable)\n- Mapping: @GetMapping\n- Auth/Ruolo: @PreAuthorize(\"hasAnyRole('ADMIN', 'MANAGER')\")"
+					}
+				},
+				{
+					"name": "Get Locatario by ID",
+					"request": {
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}"}]},
+						"method": "GET",
+						"url": {"raw": "{{baseUrl}}/api/locatari/{{locatarioId}}", "host": ["{{baseUrl}}"], "path": ["api", "locatari", "{{locatarioId}}"]},
+						"description": "EVIDENZA:\n- File: LocatarioController.java:46\n- Metodo: getLocatarioById(@PathVariable Long id)\n- Mapping: @GetMapping(\"/{id}\")\n- Auth/Ruolo: @PreAuthorize(\"hasAnyRole('ADMIN', 'MANAGER')\")"
+					}
+				},
+				{
+					"name": "Get My Locatario",
+					"request": {
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{locatarioToken}}"}]},
+						"method": "GET",
+						"url": {"raw": "{{baseUrl}}/api/locatari/me", "host": ["{{baseUrl}}"], "path": ["api", "locatari", "me"]},
+						"description": "EVIDENZA:\n- File: LocatarioController.java:52\n- Metodo: getMyLocatario(Authentication)\n- Mapping: @GetMapping(\"/me\")\n- Auth/Ruolo: @PreAuthorize(\"hasRole('LOCATARIO')\")"
+					}
+				},
+				{
+					"name": "Update Locatario",
+					"request": {
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}"}]},
+						"method": "PUT",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"nome\": \"Mario Updated\",\n    \"cognome\": \"Bianchi Updated\",\n    \"cf\": \"BNCMRA80A01H501X\",\n    \"indirizzo\": \"Via Nuova 200, Roma\",\n    \"telefono\": \"+39 333 1111111\",\n    \"userId\": {{locatarioUserId}}\n}"
+						},
+						"url": {"raw": "{{baseUrl}}/api/locatari/{{locatarioId}}", "host": ["{{baseUrl}}"], "path": ["api", "locatari", "{{locatarioId}}"]},
+						"description": "EVIDENZA:\n- File: LocatarioController.java:70\n- Metodo: updateLocatario(@PathVariable Long id, @Valid @RequestBody LocatarioRequestDTO)\n- Mapping: @PutMapping(\"/{id}\")\n- Auth/Ruolo: @PreAuthorize(\"hasAnyRole('ADMIN', 'MANAGER')\")"
+					}
+				},
+				{
+					"name": "Get Locatari con Contratti Lunghi",
+					"request": {
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}"}]},
+						"method": "GET",
+						"url": {"raw": "{{baseUrl}}/api/locatari/contratti-lunghi", "host": ["{{baseUrl}}"], "path": ["api", "locatari", "contratti-lunghi"]},
+						"description": "EVIDENZA:\n- File: LocatarioController.java:83\n- Metodo: getLocatariConContrattiLunghi()\n- Mapping: @GetMapping(\"/contratti-lunghi\")\n- Auth/Ruolo: @PreAuthorize(\"hasAnyRole('ADMIN', 'MANAGER')\")"
+					}
+				},
+				{
+					"name": "Delete Locatario",
+					"request": {
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}"}]},
+						"method": "DELETE",
+						"url": {"raw": "{{baseUrl}}/api/locatari/{{locatarioId}}", "host": ["{{baseUrl}}"], "path": ["api", "locatari", "{{locatarioId}}"]},
+						"description": "EVIDENZA:\n- File: LocatarioController.java:76\n- Metodo: deleteLocatario(@PathVariable Long id)\n- Mapping: @DeleteMapping(\"/{id}\")\n- Auth/Ruolo: @PreAuthorize(\"hasRole('ADMIN')\")\n\nResponse: 204 No Content"
+					}
+				}
+			]
+		},
+		{
+			"name": "05 - Contratti",
+			"description": "CRUD Contratti.\n\nEVIDENZA:\n- File: ContrattoController.java\n- Mapping: @RequestMapping(\"/api/contratti\")",
+			"item": [
+				{
+					"name": "Create Contratto",
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status code is 201', function() {",
+								"    pm.response.to.have.status(201);",
+								"});",
+								"var jsonData = pm.response.json();",
+								"if(jsonData && jsonData.id) {",
+								"    pm.environment.set('contrattoId', jsonData.id);",
+								"}"
+							],
+							"type": "text/javascript"
+						}
+					}],
+					"request": {
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}"}]},
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"locatarioId\": {{locatarioId}},\n    \"immobileId\": {{immobileId}},\n    \"dataInizio\": \"2025-01-01\",\n    \"durataAnni\": 3,\n    \"canoneAnnuo\": 12000.00,\n    \"frequenzaRata\": \"TRIMESTRALE\"\n}"
+						},
+						"url": {"raw": "{{baseUrl}}/api/contratti", "host": ["{{baseUrl}}"], "path": ["api", "contratti"]},
+						"description": "EVIDENZA:\n- File: ContrattoController.java:66\n- Metodo: createContratto(@Valid @RequestBody ContrattoRequestDTO)\n- Mapping: @PostMapping\n- Auth/Ruolo: @PreAuthorize(\"hasAnyRole('ADMIN', 'MANAGER')\")\n\nFrequenzaRata: MENSILE|BIMESTRALE|TRIMESTRALE|SEMESTRALE|ANNUALE"
+					}
+				},
+				{
+					"name": "Get All Contratti",
+					"request": {
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}"}]},
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/api/contratti?page=0&size=20",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "contratti"],
+							"query": [{"key": "page", "value": "0"}, {"key": "size", "value": "20"}]
+						},
+						"description": "EVIDENZA:\n- File: ContrattoController.java:43\n- Metodo: getAllContratti(@PageableDefault Pageable)\n- Mapping: @GetMapping\n- Auth/Ruolo: @PreAuthorize(\"hasAnyRole('ADMIN', 'MANAGER')\")"
+					}
+				},
+				{
+					"name": "Get Contratto by ID",
+					"request": {
+						"method": "GET",
+						"url": {"raw": "{{baseUrl}}/api/contratti/{{contrattoId}}", "host": ["{{baseUrl}}"], "path": ["api", "contratti", "{{contrattoId}}"]},
+						"description": "EVIDENZA:\n- File: ContrattoController.java:51\n- Metodo: getContrattoById(@PathVariable Long id)\n- Mapping: @GetMapping(\"/{id}\")\n- Auth/Ruolo: @PreAuthorize(\"hasAnyRole('ADMIN', 'MANAGER', 'LOCATARIO')\")"
+					}
+				},
+				{
+					"name": "Get My Contratti",
+					"request": {
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{locatarioToken}}"}]},
+						"method": "GET",
+						"url": {"raw": "{{baseUrl}}/api/contratti/me", "host": ["{{baseUrl}}"], "path": ["api", "contratti", "me"]},
+						"description": "EVIDENZA:\n- File: ContrattoController.java:58\n- Metodo: getMyContratti(Authentication)\n- Mapping: @GetMapping(\"/me\")\n- Auth/Ruolo: @PreAuthorize(\"hasRole('LOCATARIO')\")"
+					}
+				},
+				{
+					"name": "Update Contratto",
+					"request": {
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}"}]},
+						"method": "PUT",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"locatarioId\": {{locatarioId}},\n    \"immobileId\": {{immobileId}},\n    \"dataInizio\": \"2025-01-01\",\n    \"durataAnni\": 5,\n    \"canoneAnnuo\": 15000.00,\n    \"frequenzaRata\": \"MENSILE\"\n}"
+						},
+						"url": {"raw": "{{baseUrl}}/api/contratti/{{contrattoId}}", "host": ["{{baseUrl}}"], "path": ["api", "contratti", "{{contrattoId}}"]},
+						"description": "EVIDENZA:\n- File: ContrattoController.java:77\n- Metodo: updateContratto(@PathVariable Long id, @Valid @RequestBody ContrattoRequestDTO)\n- Mapping: @PutMapping(\"/{id}\")\n- Auth/Ruolo: @PreAuthorize(\"hasAnyRole('ADMIN', 'MANAGER')\")"
+					}
+				},
+				{
+					"name": "Get Contratti con Rate Non Pagate",
+					"request": {
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}"}]},
+						"method": "GET",
+						"url": {"raw": "{{baseUrl}}/api/contratti/rate-non-pagate", "host": ["{{baseUrl}}"], "path": ["api", "contratti", "rate-non-pagate"]},
+						"description": "EVIDENZA:\n- File: ContrattoController.java:95\n- Metodo: getContrattiConRateNonPagate()\n- Mapping: @GetMapping(\"/rate-non-pagate\")\n- Auth/Ruolo: @PreAuthorize(\"hasAnyRole('ADMIN', 'MANAGER')\")"
+					}
+				},
+				{
+					"name": "Delete Contratto",
+					"request": {
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}"}]},
+						"method": "DELETE",
+						"url": {"raw": "{{baseUrl}}/api/contratti/{{contrattoId}}", "host": ["{{baseUrl}}"], "path": ["api", "contratti", "{{contrattoId}}"]},
+						"description": "EVIDENZA:\n- File: ContrattoController.java:86\n- Metodo: deleteContratto(@PathVariable Long id)\n- Mapping: @DeleteMapping(\"/{id}\")\n- Auth/Ruolo: @PreAuthorize(\"hasRole('ADMIN')\")\n\nResponse: 204 No Content"
+					}
+				}
+			]
+		},
+		{
+			"name": "06 - Rate",
+			"description": "Gestione Rate.\n\nEVIDENZA:\n- File: RataController.java\n- Mapping: @RequestMapping(\"/api/rate\")\n\nNOTA: Le rate vengono create automaticamente dal ContrattoService quando si crea un contratto.",
+			"item": [
+				{
+					"name": "Get All Rate",
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status code is 200', function() {",
+								"    pm.response.to.have.status(200);",
+								"});",
+								"var jsonData = pm.response.json();",
+								"if(jsonData && Array.isArray(jsonData) && jsonData.length > 0) {",
+								"    pm.environment.set('rataId', jsonData[0].id);",
+								"}"
+							],
+							"type": "text/javascript"
+						}
+					}],
+					"request": {
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}"}]},
+						"method": "GET",
+						"url": {"raw": "{{baseUrl}}/api/rate", "host": ["{{baseUrl}}"], "path": ["api", "rate"]},
+						"description": "EVIDENZA:\n- File: RataController.java:28\n- Metodo: getAllRate()\n- Mapping: @GetMapping\n- Auth/Ruolo: @PreAuthorize(\"hasAnyRole('ADMIN', 'MANAGER')\")"
+					}
+				},
+				{
+					"name": "Get Rata by ID",
+					"request": {
+						"method": "GET",
+						"url": {"raw": "{{baseUrl}}/api/rate/{{rataId}}", "host": ["{{baseUrl}}"], "path": ["api", "rate", "{{rataId}}"]},
+						"description": "EVIDENZA:\n- File: RataController.java:34\n- Metodo: getRataById(@PathVariable Long id)\n- Mapping: @GetMapping(\"/{id}\")\n- Auth/Ruolo: @PreAuthorize(\"hasAnyRole('ADMIN', 'MANAGER', 'LOCATARIO')\")"
+					}
+				},
+				{
+					"name": "Get Rate by Contratto",
+					"request": {
+						"method": "GET",
+						"url": {"raw": "{{baseUrl}}/api/rate/contratto/{{contrattoId}}", "host": ["{{baseUrl}}"], "path": ["api", "rate", "contratto", "{{contrattoId}}"]},
+						"description": "EVIDENZA:\n- File: RataController.java:40\n- Metodo: getRateByContratto(@PathVariable Long contrattoId)\n- Mapping: @GetMapping(\"/contratto/{contrattoId}\")\n- Auth/Ruolo: @PreAuthorize(\"hasAnyRole('ADMIN', 'MANAGER', 'LOCATARIO')\")"
+					}
+				},
+				{
+					"name": "Get My Rate",
+					"request": {
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{locatarioToken}}"}]},
+						"method": "GET",
+						"url": {"raw": "{{baseUrl}}/api/rate/me", "host": ["{{baseUrl}}"], "path": ["api", "rate", "me"]},
+						"description": "EVIDENZA:\n- File: RataController.java:64\n- Metodo: getMyRate(Authentication)\n- Mapping: @GetMapping(\"/me\")\n- Auth/Ruolo: @PreAuthorize(\"hasRole('LOCATARIO')\")"
+					}
+				},
+				{
+					"name": "Get Rate Non Pagate",
+					"request": {
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}"}]},
+						"method": "GET",
+						"url": {"raw": "{{baseUrl}}/api/rate/non-pagate", "host": ["{{baseUrl}}"], "path": ["api", "rate", "non-pagate"]},
+						"description": "EVIDENZA:\n- File: RataController.java:52\n- Metodo: getRateNonPagate()\n- Mapping: @GetMapping(\"/non-pagate\")\n- Auth/Ruolo: @PreAuthorize(\"hasAnyRole('ADMIN', 'MANAGER')\")"
+					}
+				},
+				{
+					"name": "Get Rate Scadute Non Pagate",
+					"request": {
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}"}]},
+						"method": "GET",
+						"url": {"raw": "{{baseUrl}}/api/rate/scadute", "host": ["{{baseUrl}}"], "path": ["api", "rate", "scadute"]},
+						"description": "EVIDENZA:\n- File: RataController.java:58\n- Metodo: getRateScaduteNonPagate()\n- Mapping: @GetMapping(\"/scadute\")\n- Auth/Ruolo: @PreAuthorize(\"hasAnyRole('ADMIN', 'MANAGER')\")"
+					}
+				},
+				{
+					"name": "Update Rata Pagata",
+					"request": {
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}"}]},
+						"method": "PUT",
+						"url": {
+							"raw": "{{baseUrl}}/api/rate/{{rataId}}/pagata?pagata=S",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "rate", "{{rataId}}", "pagata"],
+							"query": [{"key": "pagata", "value": "S"}]
+						},
+						"description": "EVIDENZA:\n- File: RataController.java:46\n- Metodo: updateRataPagata(@PathVariable Long id, @RequestParam Character pagata)\n- Mapping: @PutMapping(\"/{id}/pagata\")\n- Auth/Ruolo: @PreAuthorize(\"hasAnyRole('ADMIN', 'MANAGER')\")\n\nValori: 'S' (pagata) o 'N' (non pagata)"
+					}
+				}
+			]
+		},
+		{
+			"name": "07 - Manutenzioni",
+			"description": "CRUD Manutenzioni.\n\nEVIDENZA:\n- File: ManutenzioneController.java\n- Mapping: @RequestMapping(\"/api/manutenzioni\")",
+			"item": [
+				{
+					"name": "Create Manutenzione",
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status code is 201', function() {",
+								"    pm.response.to.have.status(201);",
+								"});",
+								"var jsonData = pm.response.json();",
+								"if(jsonData && jsonData.id) {",
+								"    pm.environment.set('manutenzioneId', jsonData.id);",
+								"}"
+							],
+							"type": "text/javascript"
+						}
+					}],
+					"request": {
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}"}]},
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"immobileId\": {{immobileId}},\n    \"locatarioId\": {{locatarioId}},\n    \"dataMan\": \"2025-01-15\",\n    \"importo\": 500.00,\n    \"tipo\": \"STRAORDINARIA\",\n    \"descrizione\": \"Riparazione impianto idraulico\"\n}"
+						},
+						"url": {"raw": "{{baseUrl}}/api/manutenzioni", "host": ["{{baseUrl}}"], "path": ["api", "manutenzioni"]},
+						"description": "EVIDENZA:\n- File: ManutenzioneController.java:85\n- Metodo: createManutenzione(@Valid @RequestBody ManutenzioneRequestDTO)\n- Mapping: @PostMapping\n- Auth/Ruolo: @PreAuthorize(\"hasAnyRole('ADMIN', 'MANAGER')\")"
+					}
+				},
+				{
+					"name": "Get All Manutenzioni",
+					"request": {
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}"}]},
+						"method": "GET",
+						"url": {"raw": "{{baseUrl}}/api/manutenzioni", "host": ["{{baseUrl}}"], "path": ["api", "manutenzioni"]},
+						"description": "EVIDENZA:\n- File: ManutenzioneController.java:38\n- Metodo: getAllManutenzioni()\n- Mapping: @GetMapping\n- Auth/Ruolo: @PreAuthorize(\"hasAnyRole('ADMIN', 'MANAGER')\")"
+					}
+				},
+				{
+					"name": "Get Manutenzione by ID",
+					"request": {
+						"method": "GET",
+						"url": {"raw": "{{baseUrl}}/api/manutenzioni/{{manutenzioneId}}", "host": ["{{baseUrl}}"], "path": ["api", "manutenzioni", "{{manutenzioneId}}"]},
+						"description": "EVIDENZA:\n- File: ManutenzioneController.java:79\n- Metodo: getManutenzioneById(@PathVariable Long id)\n- Mapping: @GetMapping(\"/{id}\")\n- Auth/Ruolo: @PreAuthorize(\"hasAnyRole('ADMIN', 'MANAGER', 'LOCATARIO')\")"
+					}
+				},
+				{
+					"name": "Get My Manutenzioni",
+					"request": {
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{locatarioToken}}"}]},
+						"method": "GET",
+						"url": {"raw": "{{baseUrl}}/api/manutenzioni/me", "host": ["{{baseUrl}}"], "path": ["api", "manutenzioni", "me"]},
+						"description": "EVIDENZA:\n- File: ManutenzioneController.java:45\n- Metodo: getMyManutenzioni(Authentication)\n- Mapping: @GetMapping(\"/me\")\n- Auth/Ruolo: @PreAuthorize(\"hasRole('LOCATARIO')\")"
+					}
+				},
+				{
+					"name": "Get Manutenzioni by Locatario e Anno",
+					"request": {
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}"}]},
+						"method": "GET",
+						"url": {"raw": "{{baseUrl}}/api/manutenzioni/locatario/{{locatarioId}}/anno/2025", "host": ["{{baseUrl}}"], "path": ["api", "manutenzioni", "locatario", "{{locatarioId}}", "anno", "2025"]},
+						"description": "EVIDENZA:\n- File: ManutenzioneController.java:58\n- Metodo: getManutenzioniByLocatarioAndAnno(@PathVariable Long locatarioId, @PathVariable int anno)\n- Mapping: @GetMapping(\"/locatario/{locatarioId}/anno/{anno}\")\n- Auth/Ruolo: @PreAuthorize(\"hasAnyRole('ADMIN', 'MANAGER')\")"
+					}
+				},
+				{
+					"name": "Get Date Manutenzioni by Importo",
+					"request": {
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}"}]},
+						"method": "GET",
+						"url": {"raw": "{{baseUrl}}/api/manutenzioni/locatario/{{locatarioId}}/importo-maggiore/100", "host": ["{{baseUrl}}"], "path": ["api", "manutenzioni", "locatario", "{{locatarioId}}", "importo-maggiore", "100"]},
+						"description": "EVIDENZA:\n- File: ManutenzioneController.java:72\n- Metodo: getDateManutenzioniByImporto(@PathVariable Long locatarioId, @PathVariable Double importo)\n- Mapping: @GetMapping(\"/locatario/{locatarioId}/importo-maggiore/{importo}\")\n- Auth/Ruolo: @PreAuthorize(\"hasAnyRole('ADMIN', 'MANAGER')\")"
+					}
+				},
+				{
+					"name": "Get Totale Spese per Anno e Città",
+					"request": {
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}"}]},
+						"method": "GET",
+						"url": {"raw": "{{baseUrl}}/api/manutenzioni/totale-per-anno-citta", "host": ["{{baseUrl}}"], "path": ["api", "manutenzioni", "totale-per-anno-citta"]},
+						"description": "EVIDENZA:\n- File: ManutenzioneController.java:52\n- Metodo: getTotaleSpeseManutenzionePerAnnoCitta()\n- Mapping: @GetMapping(\"/totale-per-anno-citta\")\n- Auth/Ruolo: @PreAuthorize(\"hasAnyRole('ADMIN', 'MANAGER')\")"
+					}
+				},
+				{
+					"name": "Update Manutenzione",
+					"request": {
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}"}]},
+						"method": "PUT",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"immobileId\": {{immobileId}},\n    \"locatarioId\": {{locatarioId}},\n    \"dataMan\": \"2025-01-20\",\n    \"importo\": 750.00,\n    \"tipo\": \"ORDINARIA\",\n    \"descrizione\": \"Riparazione completata\"\n}"
+						},
+						"url": {"raw": "{{baseUrl}}/api/manutenzioni/{{manutenzioneId}}", "host": ["{{baseUrl}}"], "path": ["api", "manutenzioni", "{{manutenzioneId}}"]},
+						"description": "EVIDENZA:\n- File: ManutenzioneController.java:95\n- Metodo: updateManutenzione(@PathVariable Long id, @Valid @RequestBody ManutenzioneRequestDTO)\n- Mapping: @PutMapping(\"/{id}\")\n- Auth/Ruolo: @PreAuthorize(\"hasAnyRole('ADMIN', 'MANAGER')\")"
+					}
+				},
+				{
+					"name": "Delete Manutenzione",
+					"request": {
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}"}]},
+						"method": "DELETE",
+						"url": {"raw": "{{baseUrl}}/api/manutenzioni/{{manutenzioneId}}", "host": ["{{baseUrl}}"], "path": ["api", "manutenzioni", "{{manutenzioneId}}"]},
+						"description": "EVIDENZA:\n- File: ManutenzioneController.java:103\n- Metodo: deleteManutenzione(@PathVariable Long id)\n- Mapping: @DeleteMapping(\"/{id}\")\n- Auth/Ruolo: @PreAuthorize(\"hasRole('ADMIN')\")\n\nResponse: 204 No Content"
+					}
+				}
+			]
+		},
+		{
+			"name": "08 - Upload",
+			"description": "Upload immagini via Cloudinary.\n\nEVIDENZA:\n- File: UploadController.java, UserController.java\n- Servizio: CloudinaryService.java",
+			"item": [
+				{
+					"name": "Upload Profile Image",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [{"key": "file", "type": "file", "src": "", "description": "Seleziona file immagine"}]
+						},
+						"url": {"raw": "{{baseUrl}}/api/upload/profile-image", "host": ["{{baseUrl}}"], "path": ["api", "upload", "profile-image"]},
+						"description": "EVIDENZA:\n- File: UploadController.java:31\n- Metodo: uploadProfileImage(@RequestParam(\"file\") MultipartFile file)\n- Mapping: @PostMapping(\"/profile-image\")\n- Auth/Ruolo: @PreAuthorize(\"isAuthenticated()\")\n\nResponse: {\"url\": \"https://res.cloudinary.com/...\"}"
+					}
+				},
+				{
+					"name": "Update My Profile Image",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [{"key": "file", "type": "file", "src": "", "description": "Seleziona file immagine"}]
+						},
+						"url": {"raw": "{{baseUrl}}/api/users/me/profile-image", "host": ["{{baseUrl}}"], "path": ["api", "users", "me", "profile-image"]},
+						"description": "EVIDENZA:\n- File: UserController.java:70\n- Metodo: updateProfileImage(Authentication, @RequestParam(\"file\") MultipartFile)\n- Mapping: @PutMapping(\"/me/profile-image\")\n- Auth/Ruolo: @PreAuthorize(\"isAuthenticated()\")"
+					}
+				}
+			]
+		},
+		{
+			"name": "09 - GraphQL",
+			"description": "Endpoint GraphQL.\n\nEVIDENZA:\n- File: schema.graphqls, QueryResolver.java, MutationResolver.java\n- Config: spring.graphql.http.path=/graphql\n- Endpoint: POST /graphql\n- Content-Type: application/json",
+			"item": [
+				{
+					"name": "GraphQL - Queries",
+					"description": "Tutte le query GraphQL disponibili",
+					"item": [
+						{
+							"name": "Query Users",
+							"request": {
+								"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}", "type": "string"}]},
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"query\": \"query { users { id email nome cognome profileImage registrationDate enabled roles { id name } locatario { id nome cognome } } }\"\n}"
+								},
+								"url": {"raw": "{{baseUrl}}/graphql", "host": ["{{baseUrl}}"], "path": ["graphql"]},
+								"description": "EVIDENZA:\n- File: QueryResolver.java:51\n- Query: users: [User!]!\n- Auth/Ruolo: @PreAuthorize(\"hasRole('ADMIN')\")"
+							}
+						},
+						{
+							"name": "Query User by ID",
+							"request": {
+								"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}", "type": "string"}]},
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"query\": \"query { user(id: \\\"{{adminUserId}}\\\") { id email nome cognome profileImage roles { name } locatario { id nome cognome } } }\"\n}"
+								},
+								"url": {"raw": "{{baseUrl}}/graphql", "host": ["{{baseUrl}}"], "path": ["graphql"]},
+								"description": "EVIDENZA:\n- File: QueryResolver.java:57\n- Query: user(id: ID!): User\n- Auth/Ruolo: @PreAuthorize(\"hasRole('ADMIN')\")"
+							}
+						},
+						{
+							"name": "Query Me",
+							"request": {
+								"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{accessToken}}", "type": "string"}]},
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"query\": \"query { me { id email nome cognome profileImage registrationDate enabled roles { id name } locatario { id nome cognome cf } } }\"\n}"
+								},
+								"url": {"raw": "{{baseUrl}}/graphql", "host": ["{{baseUrl}}"], "path": ["graphql"]},
+								"description": "EVIDENZA:\n- File: QueryResolver.java:63\n- Query: me: User\n- Auth/Ruolo: @PreAuthorize(\"isAuthenticated()\")"
+							}
+						},
+						{
+							"name": "Query Immobili",
+							"request": {
+								"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{accessToken}}", "type": "string"}]},
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"query\": \"query { immobili { id indirizzo citta superficie tipo appartamento { piano numCamere } negozio { vetrine magazzinoMq } ufficio { postiLavoro saleRiunioni } } }\"\n}"
+								},
+								"url": {"raw": "{{baseUrl}}/graphql", "host": ["{{baseUrl}}"], "path": ["graphql"]},
+								"description": "EVIDENZA:\n- File: QueryResolver.java:71\n- Query: immobili: [Immobile!]!\n- Auth/Ruolo: @PreAuthorize(\"isAuthenticated()\")"
+							}
+						},
+						{
+							"name": "Query Immobile by ID",
+							"request": {
+								"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{accessToken}}", "type": "string"}]},
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"query\": \"query { immobile(id: \\\"{{immobileId}}\\\") { id indirizzo citta superficie tipo appartamento { piano numCamere } negozio { vetrine magazzinoMq } ufficio { postiLavoro saleRiunioni } contratti { id dataInizio canoneAnnuo } } }\"\n}"
+								},
+								"url": {"raw": "{{baseUrl}}/graphql", "host": ["{{baseUrl}}"], "path": ["graphql"]},
+								"description": "EVIDENZA:\n- File: QueryResolver.java:77\n- Query: immobile(id: ID!): Immobile\n- Auth/Ruolo: @PreAuthorize(\"isAuthenticated()\")"
+							}
+						},
+						{
+							"name": "Query Contratti",
+							"request": {
+								"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{accessToken}}", "type": "string"}]},
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"query\": \"query { contratti { id dataInizio durataAnni canoneAnnuo frequenzaRata locatario { id nome cognome cf } immobile { id indirizzo citta tipo } rate { id numeroRata importo pagata dataScadenza } } }\"\n}"
+								},
+								"url": {"raw": "{{baseUrl}}/graphql", "host": ["{{baseUrl}}"], "path": ["graphql"]},
+								"description": "EVIDENZA:\n- File: QueryResolver.java:84\n- Query: contratti: [Contratto!]!\n- Auth/Ruolo: @PreAuthorize(\"isAuthenticated()\")"
+							}
+						},
+						{
+							"name": "Query Contratto by ID",
+							"request": {
+								"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{accessToken}}", "type": "string"}]},
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"query\": \"query { contratto(id: \\\"{{contrattoId}}\\\") { id dataInizio durataAnni canoneAnnuo frequenzaRata locatario { id nome cognome cf indirizzo telefono } immobile { id indirizzo citta superficie tipo } rate { id numeroRata dataScadenza importo pagata } } }\"\n}"
+								},
+								"url": {"raw": "{{baseUrl}}/graphql", "host": ["{{baseUrl}}"], "path": ["graphql"]},
+								"description": "EVIDENZA:\n- File: QueryResolver.java:90\n- Query: contratto(id: ID!): Contratto\n- Auth/Ruolo: @PreAuthorize(\"isAuthenticated()\")"
+							}
+						},
+						{
+							"name": "Query Locatari",
+							"request": {
+								"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{accessToken}}", "type": "string"}]},
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"query\": \"query { locatari { id nome cognome cf indirizzo telefono user { id email nome cognome } contratti { id dataInizio canoneAnnuo } } }\"\n}"
+								},
+								"url": {"raw": "{{baseUrl}}/graphql", "host": ["{{baseUrl}}"], "path": ["graphql"]},
+								"description": "EVIDENZA:\n- File: QueryResolver.java:98\n- Query: locatari: [Locatario!]!\n- Auth/Ruolo: @PreAuthorize(\"isAuthenticated()\")"
+							}
+						},
+						{
+							"name": "Query Locatario by ID",
+							"request": {
+								"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{accessToken}}", "type": "string"}]},
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"query\": \"query { locatario(id: \\\"{{locatarioId}}\\\") { id nome cognome cf indirizzo telefono user { id email nome cognome } contratti { id dataInizio durataAnni canoneAnnuo immobile { indirizzo citta } } manutenzioni { id dataMan importo tipo } } }\"\n}"
+								},
+								"url": {"raw": "{{baseUrl}}/graphql", "host": ["{{baseUrl}}"], "path": ["graphql"]},
+								"description": "EVIDENZA:\n- File: QueryResolver.java:104\n- Query: locatario(id: ID!): Locatario\n- Auth/Ruolo: @PreAuthorize(\"isAuthenticated()\")"
+							}
+						},
+						{
+							"name": "Query Rate",
+							"request": {
+								"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{accessToken}}", "type": "string"}]},
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"query\": \"query { rate { id numeroRata dataScadenza importo pagata contratto { id dataInizio canoneAnnuo locatario { nome cognome } } } }\"\n}"
+								},
+								"url": {"raw": "{{baseUrl}}/graphql", "host": ["{{baseUrl}}"], "path": ["graphql"]},
+								"description": "EVIDENZA:\n- File: QueryResolver.java:110\n- Query: rate: [Rata!]!\n- Auth/Ruolo: @PreAuthorize(\"isAuthenticated()\")"
+							}
+						},
+						{
+							"name": "Query Rata by ID",
+							"request": {
+								"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{accessToken}}", "type": "string"}]},
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"query\": \"query { rata(id: \\\"{{rataId}}\\\") { id numeroRata dataScadenza importo pagata contratto { id dataInizio durataAnni canoneAnnuo frequenzaRata locatario { nome cognome } immobile { indirizzo citta } } } }\"\n}"
+								},
+								"url": {"raw": "{{baseUrl}}/graphql", "host": ["{{baseUrl}}"], "path": ["graphql"]},
+								"description": "EVIDENZA:\n- File: QueryResolver.java:116\n- Query: rata(id: ID!): Rata\n- Auth/Ruolo: @PreAuthorize(\"isAuthenticated()\")"
+							}
+						},
+						{
+							"name": "Query Rate by Contratto",
+							"request": {
+								"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{accessToken}}", "type": "string"}]},
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"query\": \"query { rateByContratto(contrattoId: \\\"{{contrattoId}}\\\") { id numeroRata dataScadenza importo pagata } }\"\n}"
+								},
+								"url": {"raw": "{{baseUrl}}/graphql", "host": ["{{baseUrl}}"], "path": ["graphql"]},
+								"description": "EVIDENZA:\n- File: QueryResolver.java:122\n- Query: rateByContratto(contrattoId: ID!): [Rata!]!\n- Auth/Ruolo: @PreAuthorize(\"isAuthenticated()\")"
+							}
+						},
+						{
+							"name": "Query Manutenzioni",
+							"request": {
+								"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{accessToken}}", "type": "string"}]},
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"query\": \"query { manutenzioni { id dataMan importo tipo descrizione immobile { id indirizzo citta tipo } locatario { id nome cognome } } }\"\n}"
+								},
+								"url": {"raw": "{{baseUrl}}/graphql", "host": ["{{baseUrl}}"], "path": ["graphql"]},
+								"description": "EVIDENZA:\n- File: QueryResolver.java:129\n- Query: manutenzioni: [Manutenzione!]!\n- Auth/Ruolo: @PreAuthorize(\"isAuthenticated()\")"
+							}
+						},
+						{
+							"name": "Query Manutenzione by ID",
+							"request": {
+								"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{accessToken}}", "type": "string"}]},
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"query\": \"query { manutenzione(id: \\\"{{manutenzioneId}}\\\") { id dataMan importo tipo descrizione immobile { id indirizzo citta superficie tipo } locatario { id nome cognome cf indirizzo telefono } } }\"\n}"
+								},
+								"url": {"raw": "{{baseUrl}}/graphql", "host": ["{{baseUrl}}"], "path": ["graphql"]},
+								"description": "EVIDENZA:\n- File: QueryResolver.java:135\n- Query: manutenzione(id: ID!): Manutenzione\n- Auth/Ruolo: @PreAuthorize(\"isAuthenticated()\")"
+							}
+						},
+						{
+							"name": "Query Roles",
+							"request": {
+								"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}", "type": "string"}]},
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"query\": \"query { roles { id name } }\"\n}"
+								},
+								"url": {"raw": "{{baseUrl}}/graphql", "host": ["{{baseUrl}}"], "path": ["graphql"]},
+								"description": "EVIDENZA:\n- File: QueryResolver.java:142\n- Query: roles: [Role!]!\n- Auth/Ruolo: @PreAuthorize(\"hasRole('ADMIN')\")"
+							}
+						}
+					]
+				},
+				{
+					"name": "GraphQL - Mutations",
+					"description": "Tutte le mutation GraphQL disponibili",
+					"item": [
+						{
+							"name": "Mutation Update User",
+							"request": {
+								"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}", "type": "string"}]},
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"query\": \"mutation { updateUser(id: \\\"{{adminUserId}}\\\", input: { nome: \\\"Admin Updated\\\", cognome: \\\"Sistema Updated\\\" }) { id email nome cognome } }\"\n}"
+								},
+								"url": {"raw": "{{baseUrl}}/graphql", "host": ["{{baseUrl}}"], "path": ["graphql"]},
+								"description": "EVIDENZA:\n- File: MutationResolver.java:62\n- Mutation: updateUser(id: ID!, input: UserUpdateInput!): User!\n- Auth/Ruolo: @PreAuthorize(\"hasRole('ADMIN')\")"
+							}
+						},
+						{
+							"name": "Mutation Update Me",
+							"request": {
+								"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{accessToken}}", "type": "string"}]},
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"query\": \"mutation { updateMe(input: { nome: \\\"My Name\\\", cognome: \\\"My Surname\\\", profileImage: \\\"https://example.com/image.jpg\\\" }) { id email nome cognome profileImage } }\"\n}"
+								},
+								"url": {"raw": "{{baseUrl}}/graphql", "host": ["{{baseUrl}}"], "path": ["graphql"]},
+								"description": "EVIDENZA:\n- File: MutationResolver.java:72\n- Mutation: updateMe(input: UserUpdateInput!): User!\n- Auth/Ruolo: @PreAuthorize(\"isAuthenticated()\")"
+							}
+						},
+						{
+							"name": "Mutation Update User Roles",
+							"request": {
+								"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}", "type": "string"}]},
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"query\": \"mutation { updateUserRoles(id: \\\"{{managerUserId}}\\\", roles: [\\\"ROLE_MANAGER\\\", \\\"ROLE_LOCATARIO\\\"]) { id email roles { name } } }\"\n}"
+								},
+								"url": {"raw": "{{baseUrl}}/graphql", "host": ["{{baseUrl}}"], "path": ["graphql"]},
+								"description": "EVIDENZA:\n- File: MutationResolver.java:84\n- Mutation: updateUserRoles(id: ID!, roles: [String!]!): User!\n- Auth/Ruolo: @PreAuthorize(\"hasRole('ADMIN')\")"
+							}
+						},
+						{
+							"name": "Mutation Delete User",
+							"request": {
+								"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}", "type": "string"}]},
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"query\": \"mutation { deleteUser(id: \\\"{{userId}}\\\") }\"\n}"
+								},
+								"url": {"raw": "{{baseUrl}}/graphql", "host": ["{{baseUrl}}"], "path": ["graphql"]},
+								"description": "EVIDENZA:\n- File: MutationResolver.java:90\n- Mutation: deleteUser(id: ID!): Boolean!\n- Auth/Ruolo: @PreAuthorize(\"hasRole('ADMIN')\")"
+							}
+						},
+						{
+							"name": "Mutation Create Immobile (Appartamento)",
+							"request": {
+								"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}", "type": "string"}]},
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"query\": \"mutation { createImmobile(input: { indirizzo: \\\"Via GraphQL 123\\\", citta: \\\"Milano\\\", superficie: 100.5, tipo: APPARTAMENTO, piano: 3, numCamere: 4 }) { id indirizzo citta superficie tipo appartamento { piano numCamere } } }\"\n}"
+								},
+								"url": {"raw": "{{baseUrl}}/graphql", "host": ["{{baseUrl}}"], "path": ["graphql"]},
+								"description": "EVIDENZA:\n- File: MutationResolver.java:98\n- Mutation: createImmobile(input: ImmobileInput!): Immobile!\n- Auth/Ruolo: @PreAuthorize(\"hasAnyRole('ADMIN', 'MANAGER')\")"
+							}
+						},
+						{
+							"name": "Mutation Create Immobile (Negozio)",
+							"request": {
+								"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}", "type": "string"}]},
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"query\": \"mutation { createImmobile(input: { indirizzo: \\\"Via Commerciale 45\\\", citta: \\\"Roma\\\", superficie: 150.0, tipo: NEGOZIO, vetrine: 3, magazzinoMq: 50.0 }) { id indirizzo citta superficie tipo negozio { vetrine magazzinoMq } } }\"\n}"
+								},
+								"url": {"raw": "{{baseUrl}}/graphql", "host": ["{{baseUrl}}"], "path": ["graphql"]},
+								"description": "EVIDENZA:\n- File: MutationResolver.java:98\n- Mutation: createImmobile(input: ImmobileInput!): Immobile!\n- Auth/Ruolo: @PreAuthorize(\"hasAnyRole('ADMIN', 'MANAGER')\")"
+							}
+						},
+						{
+							"name": "Mutation Create Immobile (Ufficio)",
+							"request": {
+								"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}", "type": "string"}]},
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"query\": \"mutation { createImmobile(input: { indirizzo: \\\"Via Business 78\\\", citta: \\\"Torino\\\", superficie: 200.0, tipo: UFFICIO, postiLavoro: 15, saleRiunioni: 3 }) { id indirizzo citta superficie tipo ufficio { postiLavoro saleRiunioni } } }\"\n}"
+								},
+								"url": {"raw": "{{baseUrl}}/graphql", "host": ["{{baseUrl}}"], "path": ["graphql"]},
+								"description": "EVIDENZA:\n- File: MutationResolver.java:98\n- Mutation: createImmobile(input: ImmobileInput!): Immobile!\n- Auth/Ruolo: @PreAuthorize(\"hasAnyRole('ADMIN', 'MANAGER')\")"
+							}
+						},
+						{
+							"name": "Mutation Update Immobile",
+							"request": {
+								"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}", "type": "string"}]},
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"query\": \"mutation { updateImmobile(id: \\\"{{immobileId}}\\\", input: { indirizzo: \\\"Via Updated 456\\\", citta: \\\"Milano\\\", superficie: 120.0, tipo: APPARTAMENTO, piano: 4, numCamere: 5 }) { id indirizzo citta superficie tipo } }\"\n}"
+								},
+								"url": {"raw": "{{baseUrl}}/graphql", "host": ["{{baseUrl}}"], "path": ["graphql"]},
+								"description": "EVIDENZA:\n- File: MutationResolver.java:116\n- Mutation: updateImmobile(id: ID!, input: ImmobileInput!): Immobile!\n- Auth/Ruolo: @PreAuthorize(\"hasAnyRole('ADMIN', 'MANAGER')\")"
+							}
+						},
+						{
+							"name": "Mutation Delete Immobile",
+							"request": {
+								"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}", "type": "string"}]},
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"query\": \"mutation { deleteImmobile(id: \\\"{{immobileId}}\\\") }\"\n}"
+								},
+								"url": {"raw": "{{baseUrl}}/graphql", "host": ["{{baseUrl}}"], "path": ["graphql"]},
+								"description": "EVIDENZA:\n- File: MutationResolver.java:134\n- Mutation: deleteImmobile(id: ID!): Boolean!\n- Auth/Ruolo: @PreAuthorize(\"hasAnyRole('ADMIN', 'MANAGER')\")"
+							}
+						},
+						{
+							"name": "Mutation Create Contratto",
+							"request": {
+								"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}", "type": "string"}]},
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"query\": \"mutation { createContratto(input: { locatarioId: \\\"{{locatarioId}}\\\", immobileId: \\\"{{immobileId}}\\\", dataInizio: \\\"2025-01-01\\\", durataAnni: 3, canoneAnnuo: 12000.00, frequenzaRata: TRIMESTRALE }) { id dataInizio durataAnni canoneAnnuo frequenzaRata locatario { nome cognome } immobile { indirizzo citta } } }\"\n}"
+								},
+								"url": {"raw": "{{baseUrl}}/graphql", "host": ["{{baseUrl}}"], "path": ["graphql"]},
+								"description": "EVIDENZA:\n- File: MutationResolver.java:142\n- Mutation: createContratto(input: ContrattoInput!): Contratto!\n- Auth/Ruolo: @PreAuthorize(\"hasAnyRole('ADMIN', 'MANAGER')\")\n\nNOTA: Le rate vengono generate automaticamente"
+							}
+						},
+						{
+							"name": "Mutation Update Contratto",
+							"request": {
+								"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}", "type": "string"}]},
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"query\": \"mutation { updateContratto(id: \\\"{{contrattoId}}\\\", input: { locatarioId: \\\"{{locatarioId}}\\\", immobileId: \\\"{{immobileId}}\\\", dataInizio: \\\"2025-01-01\\\", durataAnni: 5, canoneAnnuo: 15000.00, frequenzaRata: MENSILE }) { id dataInizio durataAnni canoneAnnuo frequenzaRata } }\"\n}"
+								},
+								"url": {"raw": "{{baseUrl}}/graphql", "host": ["{{baseUrl}}"], "path": ["graphql"]},
+								"description": "EVIDENZA:\n- File: MutationResolver.java:156\n- Mutation: updateContratto(id: ID!, input: ContrattoInput!): Contratto!\n- Auth/Ruolo: @PreAuthorize(\"hasAnyRole('ADMIN', 'MANAGER')\")"
+							}
+						},
+						{
+							"name": "Mutation Delete Contratto",
+							"request": {
+								"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}", "type": "string"}]},
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"query\": \"mutation { deleteContratto(id: \\\"{{contrattoId}}\\\") }\"\n}"
+								},
+								"url": {"raw": "{{baseUrl}}/graphql", "host": ["{{baseUrl}}"], "path": ["graphql"]},
+								"description": "EVIDENZA:\n- File: MutationResolver.java:170\n- Mutation: deleteContratto(id: ID!): Boolean!\n- Auth/Ruolo: @PreAuthorize(\"hasAnyRole('ADMIN', 'MANAGER')\")"
+							}
+						},
+						{
+							"name": "Mutation Create Locatario",
+							"request": {
+								"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}", "type": "string"}]},
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"query\": \"mutation { createLocatario(input: { nome: \\\"Mario\\\", cognome: \\\"Bianchi\\\", cf: \\\"BNCMRA80A01H501X\\\", indirizzo: \\\"Via Roma 100, Milano\\\", telefono: \\\"+39 333 9876543\\\", userId: \\\"{{locatarioUserId}}\\\" }) { id nome cognome cf indirizzo telefono user { email } } }\"\n}"
+								},
+								"url": {"raw": "{{baseUrl}}/graphql", "host": ["{{baseUrl}}"], "path": ["graphql"]},
+								"description": "EVIDENZA:\n- File: MutationResolver.java:178\n- Mutation: createLocatario(input: LocatarioInput!): Locatario!\n- Auth/Ruolo: @PreAuthorize(\"hasAnyRole('ADMIN', 'MANAGER')\")"
+							}
+						},
+						{
+							"name": "Mutation Update Locatario",
+							"request": {
+								"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}", "type": "string"}]},
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"query\": \"mutation { updateLocatario(id: \\\"{{locatarioId}}\\\", input: { nome: \\\"Mario Updated\\\", cognome: \\\"Bianchi Updated\\\", cf: \\\"BNCMRA80A01H501X\\\", indirizzo: \\\"Via Nuova 200, Roma\\\", telefono: \\\"+39 333 1111111\\\", userId: \\\"{{locatarioUserId}}\\\" }) { id nome cognome cf indirizzo telefono } }\"\n}"
+								},
+								"url": {"raw": "{{baseUrl}}/graphql", "host": ["{{baseUrl}}"], "path": ["graphql"]},
+								"description": "EVIDENZA:\n- File: MutationResolver.java:192\n- Mutation: updateLocatario(id: ID!, input: LocatarioInput!): Locatario!\n- Auth/Ruolo: @PreAuthorize(\"hasAnyRole('ADMIN', 'MANAGER')\")"
+							}
+						},
+						{
+							"name": "Mutation Delete Locatario",
+							"request": {
+								"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}", "type": "string"}]},
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"query\": \"mutation { deleteLocatario(id: \\\"{{locatarioId}}\\\") }\"\n}"
+								},
+								"url": {"raw": "{{baseUrl}}/graphql", "host": ["{{baseUrl}}"], "path": ["graphql"]},
+								"description": "EVIDENZA:\n- File: MutationResolver.java:206\n- Mutation: deleteLocatario(id: ID!): Boolean!\n- Auth/Ruolo: @PreAuthorize(\"hasAnyRole('ADMIN', 'MANAGER')\")"
+							}
+						},
+						{
+							"name": "Mutation Create Rata",
+							"request": {
+								"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}", "type": "string"}]},
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"query\": \"mutation { createRata(input: { contrattoId: \\\"{{contrattoId}}\\\", numeroRata: 1, dataScadenza: \\\"2025-03-31\\\", importo: 3000.00, pagata: false }) { id numeroRata dataScadenza importo pagata contratto { id canoneAnnuo } } }\"\n}"
+								},
+								"url": {"raw": "{{baseUrl}}/graphql", "host": ["{{baseUrl}}"], "path": ["graphql"]},
+								"description": "EVIDENZA:\n- File: MutationResolver.java:214\n- Mutation: createRata(input: RataInput!): Rata!\n- Auth/Ruolo: @PreAuthorize(\"hasAnyRole('ADMIN', 'MANAGER')\")"
+							}
+						},
+						{
+							"name": "Mutation Update Rata",
+							"request": {
+								"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}", "type": "string"}]},
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"query\": \"mutation { updateRata(id: \\\"{{rataId}}\\\", input: { contrattoId: \\\"{{contrattoId}}\\\", numeroRata: 1, dataScadenza: \\\"2025-04-30\\\", importo: 3500.00, pagata: false }) { id numeroRata dataScadenza importo pagata } }\"\n}"
+								},
+								"url": {"raw": "{{baseUrl}}/graphql", "host": ["{{baseUrl}}"], "path": ["graphql"]},
+								"description": "EVIDENZA:\n- File: MutationResolver.java:227\n- Mutation: updateRata(id: ID!, input: RataInput!): Rata!\n- Auth/Ruolo: @PreAuthorize(\"hasAnyRole('ADMIN', 'MANAGER')\")"
+							}
+						},
+						{
+							"name": "Mutation Mark Rata as Pagata",
+							"request": {
+								"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}", "type": "string"}]},
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"query\": \"mutation { markRataAsPagata(id: \\\"{{rataId}}\\\") { id numeroRata importo pagata dataScadenza } }\"\n}"
+								},
+								"url": {"raw": "{{baseUrl}}/graphql", "host": ["{{baseUrl}}"], "path": ["graphql"]},
+								"description": "EVIDENZA:\n- File: MutationResolver.java:240\n- Mutation: markRataAsPagata(id: ID!): Rata!\n- Auth/Ruolo: @PreAuthorize(\"hasAnyRole('ADMIN', 'MANAGER')\")"
+							}
+						},
+						{
+							"name": "Mutation Delete Rata",
+							"request": {
+								"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}", "type": "string"}]},
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"query\": \"mutation { deleteRata(id: \\\"{{rataId}}\\\") }\"\n}"
+								},
+								"url": {"raw": "{{baseUrl}}/graphql", "host": ["{{baseUrl}}"], "path": ["graphql"]},
+								"description": "EVIDENZA:\n- File: MutationResolver.java:246\n- Mutation: deleteRata(id: ID!): Boolean!\n- Auth/Ruolo: @PreAuthorize(\"hasAnyRole('ADMIN', 'MANAGER')\")"
+							}
+						},
+						{
+							"name": "Mutation Create Manutenzione",
+							"request": {
+								"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}", "type": "string"}]},
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"query\": \"mutation { createManutenzione(input: { immobileId: \\\"{{immobileId}}\\\", locatarioId: \\\"{{locatarioId}}\\\", dataMan: \\\"2025-01-15\\\", importo: 500.00, tipo: \\\"STRAORDINARIA\\\", descrizione: \\\"Riparazione impianto idraulico\\\" }) { id dataMan importo tipo descrizione immobile { indirizzo citta } locatario { nome cognome } } }\"\n}"
+								},
+								"url": {"raw": "{{baseUrl}}/graphql", "host": ["{{baseUrl}}"], "path": ["graphql"]},
+								"description": "EVIDENZA:\n- File: MutationResolver.java:254\n- Mutation: createManutenzione(input: ManutenzioneInput!): Manutenzione!\n- Auth/Ruolo: @PreAuthorize(\"hasAnyRole('ADMIN', 'MANAGER')\")"
+							}
+						},
+						{
+							"name": "Mutation Update Manutenzione",
+							"request": {
+								"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}", "type": "string"}]},
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"query\": \"mutation { updateManutenzione(id: \\\"{{manutenzioneId}}\\\", input: { immobileId: \\\"{{immobileId}}\\\", locatarioId: \\\"{{locatarioId}}\\\", dataMan: \\\"2025-01-20\\\", importo: 750.00, tipo: \\\"ORDINARIA\\\", descrizione: \\\"Riparazione completata\\\" }) { id dataMan importo tipo descrizione } }\"\n}"
+								},
+								"url": {"raw": "{{baseUrl}}/graphql", "host": ["{{baseUrl}}"], "path": ["graphql"]},
+								"description": "EVIDENZA:\n- File: MutationResolver.java:268\n- Mutation: updateManutenzione(id: ID!, input: ManutenzioneInput!): Manutenzione!\n- Auth/Ruolo: @PreAuthorize(\"hasAnyRole('ADMIN', 'MANAGER')\")"
+							}
+						},
+						{
+							"name": "Mutation Delete Manutenzione",
+							"request": {
+								"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}", "type": "string"}]},
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"query\": \"mutation { deleteManutenzione(id: \\\"{{manutenzioneId}}\\\") }\"\n}"
+								},
+								"url": {"raw": "{{baseUrl}}/graphql", "host": ["{{baseUrl}}"], "path": ["graphql"]},
+								"description": "EVIDENZA:\n- File: MutationResolver.java:282\n- Mutation: deleteManutenzione(id: ID!): Boolean!\n- Auth/Ruolo: @PreAuthorize(\"hasAnyRole('ADMIN', 'MANAGER')\")"
+							}
+						}
+					]
+				}
+			]
+		}
+	]
+}
+

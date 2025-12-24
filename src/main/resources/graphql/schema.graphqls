@@ -1,0 +1,237 @@
+type Query {
+    # User Queries
+    users: [User!]!
+    user(id: ID!): User
+    me: User
+    
+    # Immobile Queries
+    immobili: [Immobile!]!
+    immobile(id: ID!): Immobile
+    
+    # Contratto Queries
+    contratti: [Contratto!]!
+    contratto(id: ID!): Contratto
+    
+    # Locatario Queries
+    locatari: [Locatario!]!
+    locatario(id: ID!): Locatario
+    
+    # Rata Queries
+    rate: [Rata!]!
+    rata(id: ID!): Rata
+    rateByContratto(contrattoId: ID!): [Rata!]!
+    
+    # Manutenzione Queries
+    manutenzioni: [Manutenzione!]!
+    manutenzione(id: ID!): Manutenzione
+    
+    # Role Queries
+    roles: [Role!]!
+}
+
+type Mutation {
+    # User Mutations
+    updateUser(id: ID!, input: UserUpdateInput!): User!
+    updateMe(input: UserUpdateInput!): User!
+    updateUserRoles(id: ID!, roles: [String!]!): User!
+    deleteUser(id: ID!): Boolean!
+    
+    # Immobile Mutations
+    createImmobile(input: ImmobileInput!): Immobile!
+    updateImmobile(id: ID!, input: ImmobileInput!): Immobile!
+    deleteImmobile(id: ID!): Boolean!
+    
+    # Contratto Mutations
+    createContratto(input: ContrattoInput!): Contratto!
+    updateContratto(id: ID!, input: ContrattoInput!): Contratto!
+    deleteContratto(id: ID!): Boolean!
+    
+    # Locatario Mutations
+    createLocatario(input: LocatarioInput!): Locatario!
+    updateLocatario(id: ID!, input: LocatarioInput!): Locatario!
+    deleteLocatario(id: ID!): Boolean!
+    
+    # Rata Mutations
+    createRata(input: RataInput!): Rata!
+    updateRata(id: ID!, input: RataInput!): Rata!
+    deleteRata(id: ID!): Boolean!
+    markRataAsPagata(id: ID!): Rata!
+    
+    # Manutenzione Mutations
+    createManutenzione(input: ManutenzioneInput!): Manutenzione!
+    updateManutenzione(id: ID!, input: ManutenzioneInput!): Manutenzione!
+    deleteManutenzione(id: ID!): Boolean!
+}
+
+# Types
+type User {
+    id: ID!
+    email: String!
+    nome: String!
+    cognome: String!
+    profileImage: String
+    registrationDate: String!
+    enabled: Boolean!
+    roles: [Role!]!
+    locatario: Locatario
+}
+
+type Role {
+    id: ID!
+    name: String!
+}
+
+type Immobile {
+    id: ID!
+    indirizzo: String!
+    citta: String!
+    superficie: Float!
+    tipo: TipoImmobile!
+    contratti: [Contratto!]!
+    manutenzioni: [Manutenzione!]!
+    appartamento: Appartamento
+    ufficio: Ufficio
+    negozio: Negozio
+}
+
+type Appartamento {
+    id: ID!
+    indirizzo: String!
+    citta: String!
+    superficie: Float!
+    tipo: TipoImmobile!
+    piano: Int!
+    numCamere: Int!
+}
+
+type Ufficio {
+    id: ID!
+    indirizzo: String!
+    citta: String!
+    superficie: Float!
+    tipo: TipoImmobile!
+    postiLavoro: Int!
+    saleRiunioni: Int!
+}
+
+type Negozio {
+    id: ID!
+    indirizzo: String!
+    citta: String!
+    superficie: Float!
+    tipo: TipoImmobile!
+    vetrine: Int!
+    magazzinoMq: Float!
+}
+
+type Locatario {
+    id: ID!
+    nome: String!
+    cognome: String!
+    cf: String!
+    indirizzo: String!
+    telefono: String!
+    user: User!
+    contratti: [Contratto!]!
+    manutenzioni: [Manutenzione!]!
+}
+
+type Contratto {
+    id: ID!
+    locatario: Locatario!
+    immobile: Immobile!
+    dataInizio: String!
+    durataAnni: Int!
+    canoneAnnuo: Float!
+    frequenzaRata: FrequenzaRata!
+    rate: [Rata!]!
+}
+
+type Rata {
+    id: ID!
+    contratto: Contratto!
+    numeroRata: Int!
+    dataScadenza: String!
+    importo: Float!
+    pagata: Boolean!
+}
+
+type Manutenzione {
+    id: ID!
+    immobile: Immobile!
+    locatario: Locatario!
+    dataMan: String!
+    importo: Float!
+    tipo: String!
+    descrizione: String
+}
+
+# Enums
+enum TipoImmobile {
+    APPARTAMENTO
+    NEGOZIO
+    UFFICIO
+}
+
+enum FrequenzaRata {
+    MENSILE
+    BIMESTRALE
+    TRIMESTRALE
+    SEMESTRALE
+    ANNUALE
+}
+
+# Input Types
+input UserUpdateInput {
+    nome: String
+    cognome: String
+    profileImage: String
+}
+
+input ImmobileInput {
+    indirizzo: String!
+    citta: String!
+    superficie: Float!
+    tipo: TipoImmobile!
+    piano: Int
+    numCamere: Int
+    postiLavoro: Int
+    saleRiunioni: Int
+    vetrine: Int
+    magazzinoMq: Float
+}
+
+input LocatarioInput {
+    nome: String!
+    cognome: String!
+    cf: String!
+    indirizzo: String!
+    telefono: String!
+    userId: ID!
+}
+
+input ContrattoInput {
+    locatarioId: ID!
+    immobileId: ID!
+    dataInizio: String!
+    durataAnni: Int!
+    canoneAnnuo: Float!
+    frequenzaRata: FrequenzaRata!
+}
+
+input RataInput {
+    contrattoId: ID!
+    numeroRata: Int!
+    dataScadenza: String!
+    importo: Float!
+    pagata: Boolean
+}
+
+input ManutenzioneInput {
+    immobileId: ID!
+    locatarioId: ID!
+    dataMan: String!
+    importo: Float!
+    tipo: String!
+    descrizione: String
+}
